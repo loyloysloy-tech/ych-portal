@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YCH Guild Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #050505; }
+        ::-webkit-scrollbar-thumb { background: #991b1b; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #dc2626; }
+    </style>
+</head>
+<body class="bg-[#050505] text-gray-300 font-sans min-h-screen">
+
+    <div class="h-[3px] bg-gradient-to-r from-red-800 via-red-600 to-red-800 w-full"></div>
+
+    <nav class="bg-[#0c0c0e] border-b border-red-950/40 px-6 py-4 flex flex-wrap justify-between items-center gap-4 shadow-xl">
+        <div class="flex items-center gap-2.5 font-black text-xl tracking-wider text-white uppercase">
+            <i class="fa-solid fa-skull-crossbones text-red-600 animate-pulse"></i>
+            <span>YCH <span class="text-red-600">Guild</span></span>
+        </div>
+        
+        <div class="flex flex-wrap gap-6 text-sm font-semibold tracking-wide uppercase">
+            <a href="#" class="text-red-500 border-b-2 border-red-600 pb-1 flex items-center gap-1.5"><i class="fa-solid fa-trophy"></i> Leaderboard</a>
+            <a href="#" class="text-gray-500 hover:text-white transition flex items-center gap-1.5"><i class="fa-solid fa-store"></i> Shop</a>
+        </div>
+
+        <div id="auth-zone">
+            <button onclick="loginWithDiscord()" class="bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold px-4 py-2 rounded border border-indigo-400/20 shadow-lg shadow-indigo-500/10 transition flex items-center gap-2 text-xs uppercase tracking-wider cursor-pointer">
+                <i class="fa-brands fa-discord text-base"></i> Sync Discord Account
+            </button>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto p-6 space-y-6">
+        
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-[#0c0c0e] border border-red-950/30 p-4 rounded shadow-md flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Total Active Raiders</p>
+                    <h3 class="text-2xl font-black text-white mt-1" id="stat-members">0</h3>
+                </div>
+                <i class="fa-solid fa-users text-2xl text-red-950/60"></i>
+            </div>
+            <div class="bg-[#0c0c0e] border border-red-950/30 p-4 rounded shadow-md flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Circulating Guild DKP</p>
+                    <h3 class="text-2xl font-black text-red-500 mt-1" id="stat-dkp">0</h3>
+                </div>
+                <i class="fa-solid fa-coins text-2xl text-red-950/60"></i>
+            </div>
+            <div class="bg-[#0c0c0e] border border-red-950/30 p-4 rounded shadow-md flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">System Economy Health</p>
+                    <h3 class="text-2xl font-black text-emerald-500 mt-1">100%</h3>
+                </div>
+                <i class="fa-solid fa-chart-line text-2xl text-red-950/60"></i>
+            </div>
+        </div>
+
+        <section class="bg-[#0c0c0e] border border-red-950/30 rounded shadow-2xl overflow-hidden">
+            <div class="bg-[#111114] px-6 py-4 border-b border-red-950/30 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-gavel text-red-600"></i>
+                    <h2 class="text-base font-black tracking-wider text-white uppercase">Standing Standings Ledger</h2>
+                </div>
+                <span class="text-xs bg-red-950/40 text-red-400 border border-red-900/30 font-bold px-2.5 py-1 rounded uppercase tracking-widest">LIVE DATA</span>
+            </div>
+
+            <div class="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-[#08080a] text-xs font-bold tracking-widest text-gray-500 uppercase border-b border-red-950/20">
+                <div class="col-span-1 text-center">Rank</div>
+                <div class="col-span-3">Player / Class</div>
+                <div class="col-span-2">Guild Rank</div>
+                <div class="col-span-1 text-center">Raid Runs</div>
+                <div class="col-span-1 text-center">Earned</div>
+                <div class="col-span-1 text-center">Spent</div>
+                <div class="col-span-1 text-center">Decayed</div>
+                <div class="col-span-2 text-right text-red-500">Net Balance</div>
+            </div>
+
+            <div id="leaderboard-list" class="divide-y divide-red-950/10">
+                <div class="p-12 text-center text-gray-500 text-sm tracking-wide">
+                    <i class="fa-solid fa-circle-notch text-red-600 animate-spin text-xl mb-2 block mx-auto"></i>
+                    Querying live encrypted datastreams...
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // ⚠️ INSERT YOUR SUPABASE API DETAILS HERE
+        const SUPABASE_URL = "https://xuincddiajzvtjsntzbk.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1aW5jZGRpYWp6dnRqc250emJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNzkyMTEsImV4cCI6MjA5NDk1NTIxMX0.MaEcziI5U7XPow2elHfYdSF3v8GHkVmUTAni85jTjmU"; 
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Handle Discord Authentication Redirect Handshake
+        async function loginWithDiscord() {
+            const { data, error } = await supabase.auth.signInWithOAuth({
+                provider: 'discord',
+                options: {
+                    redirectTo: window.location.origin
+                }
+            });
+            if (error) console.error("Login initialization failure:", error.message);
+        }
+
+        async function handleUserSession() {
+            const { data: { session } } = await supabase.auth.getSession();
+            
+            if (session) {
+                const user = session.user;
+                const discordId = user.user_metadata.sub;
+                const discordName = user.user_metadata.full_name || user.user_metadata.name;
+
+                // Update navigation button to show their presence
+                document.getElementById('auth-zone').innerHTML = `
+                    <div class="flex items-center gap-3 bg-[#111114] border border-red-950/40 px-3 py-1.5 rounded text-xs">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span class="font-bold text-white tracking-wide">${discordName}</span>
+                        <button onclick="supabase.auth.signOut().then(() => location.reload())" class="text-gray-500 hover:text-red-500 transition ml-2 cursor-pointer"><i class="fa-solid fa-power-off"></i></button>
+                    </div>
+                `;
+
+                // Self-populate feature: If user is logged in, verify if they exist in member_list
+                let { data: existingPlayer } = await supabase
+                    .from('member_list')
+                    .select('*')
+                    .eq('discord_id', discordId)
+                    .maybeSingle();
+
+                // If they logged in but aren't in the roster table yet, create their fresh record!
+                if (!existingPlayer) {
+                    await supabase.from('member_list').insert([
+                        { 
+                            discord_id: discordId, 
+                            name: discordName,
+                            role: 'Member',
+                            class: 'Unclassed'
+                        }
+                    ]);
+                    // Reload data cleanly after creation
+                    loadDashboard();
+                }
+            }
+        }
+
+        // Fetch and draw the leaderboard
+        async function loadDashboard() {
+            const container = document.getElementById('leaderboard-list');
+            
+            let { data: members, error } = await supabase
+                .from('member_list')
+                .select('*')
+                .order('current_dkp', { ascending: false });
+
+            if (error) {
+                container.innerHTML = `<div class="p-8 text-center text-red-500 text-xs font-bold uppercase tracking-wider"><i class="fa-solid fa-triangle-exclamation"></i> Sync Error: Failed to pipeline data streams.</div>`;
+                return;
+            }
+
+            document.getElementById('stat-members').textContent = members.length;
+            const absoluteSum = members.reduce((sum, item) => sum + (item.current_dkp || 0), 0);
+            document.getElementById('stat-dkp').textContent = `${absoluteSum} DKP`;
+
+            if (members.length === 0) {
+                container.innerHTML = `
+                    <div class="p-16 text-center text-gray-600">
+                        <i class="fa-solid fa-user-slash text-3xl text-red-950/40 mb-3 block mx-auto"></i>
+                        <p class="text-sm font-medium tracking-wide uppercase text-gray-400">Roster Database Clear</p>
+                        <p class="text-xs text-gray-600 mt-1 max-w-sm mx-auto">No profiles present. Members must click 'Sync Discord Account' above to join the live standings.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = ''; 
+
+            members.forEach((player, index) => {
+                const rank = index + 1;
+                let medalStyle = "text-gray-500 bg-[#16161a] border-gray-800";
+                if(rank === 1) medalStyle = "text-yellow-500 bg-yellow-950/20 border-yellow-700/30 font-black";
+                if(rank === 2) medalStyle = "text-slate-300 bg-slate-800/30 border-slate-700/30";
+                if(rank === 3) medalStyle = "text-amber-600 bg-amber-950/20 border-amber-900/30";
+
+                const row = document.createElement('div');
+                row.className = "grid grid-cols-1 md:grid-cols-12 gap-4 px-6 py-4 items-center bg-[#0c0c0e] hover:bg-[#111114] transition border-l-2 border-transparent hover:border-red-600";
+                row.innerHTML = `
+                    <div class="col-span-1 flex justify-center md:block">
+                        <span class="w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold border ${medalStyle}">
+                            ${rank}
+                        </span>
+                    </div>
+                    <div class="col-span-3 text-center md:text-left">
+                        <h4 class="font-black text-white tracking-wide">${player.name}</h4>
+                        <span class="text-[10px] uppercase font-extrabold text-red-500/80 tracking-widest">${player.class || 'Unclassed'}</span>
+                    </div>
+                    <div class="col-span-2 text-center md:text-left text-xs font-semibold tracking-wider text-gray-400">
+                        ${player.role}
+                    </div>
+                    <div class="col-span-1 text-center text-sm font-medium text-gray-300">
+                        <span class="md:hidden text-xs text-gray-600 block uppercase font-bold">Raids:</span>
+                        ${player.attendance}
+                    </div>
+                    <div class="col-span-1 text-center text-xs text-emerald-500/80 font-mono">
+                        <span class="md:hidden text-xs text-gray-600 block uppercase font-bold">Earned:</span>
+                        +${player.total_dkp_earned}
+                    </div>
+                    <div class="col-span-1 text-center text-xs text-red-400/70 font-mono">
+                        <span class="md:hidden text-xs text-gray-600 block uppercase font-bold">Spent:</span>
+                        -${player.total_dkp_spent}
+                    </div>
+                    <div class="col-span-1 text-center text-xs text-orange-500/60 font-mono">
+                        <span class="md:hidden text-xs text-gray-600 block uppercase font-bold">Decayed:</span>
+                        -${player.total_dkp_decayed}
+                    </div>
+                    <div class="col-span-2 text-center md:text-right font-black tracking-wider text-red-500 font-mono text-base">
+                        <span class="md:hidden text-xs text-gray-600 block uppercase font-bold">Net Balance:</span>
+                        ${player.current_dkp} <span class="text-[10px] text-gray-500">DKP</span>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        // Initialize setup loops
+        document.addEventListener('DOMContentLoaded', async () => {
+            await handleUserSession();
+            await loadDashboard();
+        });
+    </script>
+</body>
+</html>
